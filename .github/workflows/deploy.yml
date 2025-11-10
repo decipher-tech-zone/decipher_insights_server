@@ -20,11 +20,13 @@ jobs:
 
       - name: 🚀 Deploy to Hostinger VPS
         run: |
+          set -e
           echo "Starting deployment..."
           ssh -o StrictHostKeyChecking=no ${{ secrets.USERNAME }}@${{ secrets.HOST }} << 'EOF'
             cd /var/www/decipher_insights_server/decipher_insights_server
-            echo "Pulling latest code..."
-            git pull origin main
+            echo "Force updating repository..."
+            git fetch origin main
+            git reset --hard origin/main
             echo "Installing dependencies..."
             npm install --production
             echo "Restarting PM2 process..."
