@@ -1,44 +1,80 @@
 const express = require("express");
 const router = express.Router();
 const WFHRequest = require("../models/WFHRequest");
+const nodemailer = require("nodemailer");
 
-// ✅ PATCH /api/wfh/approve/:id — approve or reject a WFH request
+// ✅ Approve or reject a WFH request
 router.patch("/approve/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { approved } = req.body;
+    const { approved } = req.body; // true or false
 
-    // Validate approved flag
-    if (typeof approved !== "boolean") {
-      return res.status(400).json({
-        success: false,
-        error: "Approved status must be true or false.",
-      });
-    }
-
-    // Update document
-    const updatedRequest = await WFHRequest.findByIdAndUpdate(
+    // ✅ Update request in MongoDB
+    const request = await WFHRequest.findByIdAndUpdate(
       id,
       { approved },
       { new: true }
     );
 
-    if (!updatedRequest) {
-      return res
-        .status(404)
-        .json({ success: false, error: "WFH request not found." });
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: "WFH request not found",
+      });
     }
 
-    res.status(200).json({
+    // ✅ Create transporter (for Gmail or any SMTP service)
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    // ✅ Define dynamic subject and message
+    const subject = approved
+      ? "✅ Your WFH Request Has Been Approved"
+      : "❌ Your WFH Request Has Been Rejected";
+
+    const statusMessage = approved
+      ? `<p style="color:green;">Your WFH request has been approved .</p>`
+      : `<p style="color:red;">Unfortunately, your WFH request has been rejected.</p>`;
+
+    // ✅ Send email to the employee
+    await transporter.sendMail({
+      from: `"Decipher Insights" <${process.env.EMAIL_USER}>`,
+      to: request.email,
+      subject,
+      html: `
+        <div style="font-family:Arial, sans-serif; line-height:1.5; max-width:600px;">
+          <h2>Hello ${request.name},</h2>
+          ${statusMessage}
+          <p><b>WFH Period:</b> ${request.startDate} → ${request.endDate}</p>
+          <p><b>Reason:</b> ${request.reason}</p>
+          <p><b>Requested Days:</b> ${request.numWfhDays}</p>
+          <br/>
+          <p style="font-size:13px;color:#777;">
+            This is an automated notification from the WFH Approval System.
+          </p>
+        </div>
+      `,
+    });
+
+    console.log(`✅ Email sent to ${request.email}: ${subject}`);
+
+    return res.status(200).json({
       success: true,
-      message: `WFH request ${approved ? "approved" : "rejected"} successfully.`,
-      data: updatedRequest,
+      message: `Request ${approved ? "approved" : "rejected"} and email sent.`,
+      data: request,
     });
   } catch (error) {
-    console.error("❌ Error approving WFH request:", error);
-    res.status(500).json({ success: false, error: "Internal Server Error" });
+    console.error("❌ Error approving/rejecting request:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+    });
   }
 });
 
-// ✅ You must export the router so Express can use it
 module.exports = router;

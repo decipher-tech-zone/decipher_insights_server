@@ -7,6 +7,7 @@ router.post("/request", async (req, res) => {
   try {
     const {
       name,
+      email,
       startDate,
       endDate,
       lastNonStandardMonth,
@@ -17,6 +18,7 @@ router.post("/request", async (req, res) => {
     // ✅ Basic validation
     if (
       !name ||
+      !email ||
       !startDate ||
       !endDate ||
       !lastNonStandardMonth ||
@@ -28,9 +30,18 @@ router.post("/request", async (req, res) => {
         .json({ success: false, error: "All fields are required." });
     }
 
+    // ✅ Validate email format
+    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailRegex.test(email)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Please provide a valid email address." });
+    }
+
     // ✅ Create a new request (approved defaults to null automatically)
     const newRequest = new WFHRequest({
       name,
+      email,
       startDate,
       endDate,
       lastNonStandardMonth,
