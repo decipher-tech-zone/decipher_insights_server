@@ -28,7 +28,7 @@ app.use("/api/wfh", require("./routes/allWFHrequests"));  // GET /all
 
 // ✅ Root endpoint
 app.get("/", (req, res) => {
-  res.send("Decipher Insights Production Server");
+  res.send("Decipher Insights Server");
 });
 
 // ✅ Start server
